@@ -31,19 +31,20 @@ class AirbotAggregate {
   AirbotAggregate();
   ~AirbotAggregate();
   void reset();
-  const char* temperatureToa(const char *fmt);
-  const char* humidityToa(const char *fmt);
-  const char* c2h5ohToa(const char *fmt);
-  const char* c4h10Toa(const char *fmt);
-  const char* c3h8Toa(const char *fmt);
-  const char* ch4Toa(const char *fmt);
-  const char* pm2_5Toa(const char *fmt);
-  const char* pm10Toa(const char *fmt);
-  const char* co2Toa(const char *fmt);
-  const char* coToa(const char *fmt);
-  const char* no2Toa(const char *fmt);
-  const char* nh3Toa(const char *fmt);
-  const char* h2Toa(const char *fmt);
+
+  float temperature();
+  float humidity();
+  float c2h5oh();
+  float c4h10();
+  float c3h8();
+  float ch4();
+  float pm2_5();
+  float pm10();
+  float co2();
+  float co();
+  float no2();
+  float nh3();
+  float h2();
 
   void setNH3(float c);
   void setCO(float c);
@@ -53,6 +54,13 @@ class AirbotAggregate {
   void setCH4(float c);
   void setH2(float c);
   void setC2H5OH(float c);
+
+  void setCO2(int c);
+  void setTemperature(float c);
+  void setHumidity(float c);
+
+  void setPM2_5(float c);
+  void setPM10(float c);
 
  private:
   void _reset();

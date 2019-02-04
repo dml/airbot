@@ -55,90 +55,51 @@ void AirbotAggregate::_reset() {
 }
 
 
-void AirbotAggregate::setNH3(float mt) {
-  _setGasMetric(&_nh3, mt);
-}
-
-void AirbotAggregate::setCO(float mt) {
-  _setGasMetric(&_co, mt);
-}
-
-void AirbotAggregate::setNO2(float mt) {
-  _setGasMetric(&_no2, mt);
-}
-
-void AirbotAggregate::setC3H8(float mt) {
-  _setGasMetric(&_c3h8, mt);
-}
-
-void AirbotAggregate::setC4H10(float mt) {
-  _setGasMetric(&_c4h10, mt);
-}
-
-void AirbotAggregate::setCH4(float mt) {
-  _setGasMetric(&_ch4, mt);
-}
-
-void AirbotAggregate::setH2(float mt) {
-  _setGasMetric(&_h2, mt);
-}
-
-void AirbotAggregate::setC2H5OH(float mt) {
-  _setGasMetric(&_c2h5oh, mt);
-}
+void AirbotAggregate::setNH3(float mt) { _setGasMetric(&_nh3, mt); }
+void AirbotAggregate::setCO(float mt) { _setGasMetric(&_co, mt); }
+void AirbotAggregate::setNO2(float mt) { _setGasMetric(&_no2, mt); }
+void AirbotAggregate::setC3H8(float mt) { _setGasMetric(&_c3h8, mt); }
+void AirbotAggregate::setC4H10(float mt) { _setGasMetric(&_c4h10, mt); }
+void AirbotAggregate::setCH4(float mt) { _setGasMetric(&_ch4, mt); }
+void AirbotAggregate::setH2(float mt) { _setGasMetric(&_h2, mt); }
+void AirbotAggregate::setC2H5OH(float mt) { _setGasMetric(&_c2h5oh, mt); }
 
 void AirbotAggregate::_setGasMetric(float * dst, float mt) {
   if (mt >= 0) *dst = mt;
 }
 
-const char* AirbotAggregate::temperatureToa(const char *fmt) {
-  return String("23.23").c_str();
+void AirbotAggregate::setCO2(int c) {
+
+  if (0 < c && c < 10000) _co2 = float(c);
 }
 
-const char* AirbotAggregate::humidityToa(const char *fmt) {
-  return String(_humidity, 1).c_str();
+void AirbotAggregate::setTemperature(float c) {
+  if (-99.9 < c && c < 99.9) _temperature = c;
 }
 
-const char* AirbotAggregate::c2h5ohToa(const char *fmt) {
-  return String(_c2h5oh).c_str();
+void AirbotAggregate::setHumidity(float c) {
+  if (0.0 < c && c < 100.0) _humidity = c;
 }
 
-const char* AirbotAggregate::c4h10Toa(const char *fmt) {
-  return String(_c4h10, 1).c_str();
+void AirbotAggregate::setPM2_5(float c) {
+  _pm2_5 = c;
 }
 
-const char* AirbotAggregate::c3h8Toa(const char *fmt) {
-  return String(_c3h8, 1).c_str();
+void AirbotAggregate::setPM10(float c) {
+  _pm10 = c;
 }
 
-const char* AirbotAggregate::ch4Toa(const char *fmt) {
-  return String(_ch4, 1).c_str();
-}
 
-const char* AirbotAggregate::pm2_5Toa(const char *fmt) {
-  return String(_pm2_5, 1).c_str();
-}
-
-const char* AirbotAggregate::pm10Toa(const char *fmt) {
-  return String(_pm10, 1).c_str();
-}
-
-const char* AirbotAggregate::co2Toa(const char *fmt) {
-  return String(_co2, 0).c_str();
-}
-
-const char* AirbotAggregate::coToa(const char *fmt) {
-  return String(_co, 1).c_str();
-}
-
-const char* AirbotAggregate::no2Toa(const char *fmt) {
-  return String(_no2, 1).c_str();
-}
-
-const char* AirbotAggregate::nh3Toa(const char *fmt) {
-  return String(_nh3, 1).c_str();
-}
-
-const char* AirbotAggregate::h2Toa(const char *fmt) {
-  return String(_h2, 1).c_str();
-}
+float AirbotAggregate::temperature() { return _temperature; }
+float AirbotAggregate::humidity() { return _humidity; }
+float AirbotAggregate::c2h5oh() { return _c2h5oh; }
+float AirbotAggregate::c4h10() { return _c4h10; }
+float AirbotAggregate::c3h8() { return _c3h8; }
+float AirbotAggregate::ch4() { return _ch4; }
+float AirbotAggregate::pm2_5() { return _pm2_5; }
+float AirbotAggregate::pm10() { return _pm10; }
+float AirbotAggregate::co2() { return _co2; }
+float AirbotAggregate::co() { return _co; }
+float AirbotAggregate::no2() { return _no2; }
+float AirbotAggregate::nh3() { return _nh3; }
+float AirbotAggregate::h2() { return _h2; }

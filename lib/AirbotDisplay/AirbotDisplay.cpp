@@ -25,8 +25,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <AirbotDisplay.h>
 
-AirbotDisplay::AirbotDisplay(U8G2 * u8g2) {
-  _u8g2 = u8g2;
+AirbotDisplay::AirbotDisplay(U8G2 &u8g2) {
+  screen = u8g2;
 }
 
 AirbotDisplay::~AirbotDisplay() {
@@ -34,46 +34,95 @@ AirbotDisplay::~AirbotDisplay() {
 }
 
 void AirbotDisplay::powerOn() {
-  _u8g2->begin();
+  screen.begin();
 }
 
-void AirbotDisplay::render(AirbotAggregate * a) {
-  _u8g2->firstPage();
+int AirbotDisplay::_ar(int dx, int padding = 0) {
+  return dx - screen.getStrWidth(msg) - padding;
+}
+
+int AirbotDisplay::_al(int dx, int padding = 0) {
+  return dx + padding;
+}
+
+void AirbotDisplay::render(AirbotAggregate &a) {
+  int whole = screen.getDisplayWidth();
+  int middle = whole / 2 + 4;
+  screen.firstPage();
   do {
-    _u8g2->setFont(u8g2_font_ncenB08_tf);
+    screen.setFont(u8g2_font_ncenB08_tf);
 
-    _u8g2->drawStr( 0,  8, a->temperatureToa("%.1fC"));
-    _u8g2->drawStr(50,  8, a->humidityToa("%.1f%%"));
+    // Temperatire C
+    s = String(a.temperature(), 1) + String("C"); msg = s.c_str();
+    screen.drawStr( 0, 8, msg);
 
-    _u8g2->drawLine(0, 9, 83, 9);
+    // Humidity %
+    s = String(a.humidity(), 1) + String("%"); msg = s.c_str();
+    screen.drawStr(_ar(whole), 8, msg);
 
-    _u8g2->setFont(u8g2_font_4x6_tf);
-    // Ethanol C2H6OH 10 – 500ppm
-    _u8g2->drawStr( 0, 16, a->c2h5ohToa("C2H5OH:%d"));
+    screen.drawLine(0, 9, 83, 9);
+
+    screen.setFont(u8g2_font_4x6_tf);
+
+    // Ethanol C2H5OH 10 – 500ppm
+    s = String(a.c2h5oh(), 1); msg = s.c_str();
+    screen.drawStr( 0, 16, "C2H5OH:");
+    screen.drawStr(_ar(middle), 16, msg);
+
     // Iso-butane C4H10 >1000ppm
-    _u8g2->drawStr( 0, 22, a->c4h10Toa("C4H10:%d"));
+    s = String(a.c4h10(), 0); msg = s.c_str();
+    screen.drawStr( 0, 22, "C4H10:");
+    screen.drawStr(_ar(middle), 22, msg);
+
     // Propane C3H8 >1000ppm
-    _u8g2->drawStr( 0, 28, a->c3h8Toa("C3H8:%.0f"));
+    s = String(a.c3h8(), 0); msg = s.c_str();
+    screen.drawStr( 0, 28, "C3H8:");
+    screen.drawStr(_ar(middle), 28, msg);
+
     // Methane CH4 >1000ppm
-    _u8g2->drawStr( 0, 34, a->ch4Toa("CH4:%.0f"));
+    s = String(a.ch4(), 0); msg = s.c_str();
+    screen.drawStr( 0, 34, "CH4:");
+    screen.drawStr(_ar(middle), 34, msg);
+
     // Dust pm2.5 0 - 999.9um/m3
-    _u8g2->drawStr( 0, 40, a->pm2_5Toa("PM2.5:%.0f"));
+    s = String(a.pm2_5(), 1); msg = s.c_str();
+    screen.drawStr( 0, 40, "PM2.5:");
+    screen.drawStr(_ar(middle), 40, msg);
+
     // Dust pm10 0 - 999.9um/m3
-    _u8g2->drawStr( 0, 46, a->pm10Toa("PM10:%.0f"));
+    s = String(a.pm10(), 1); msg = s.c_str();
+    screen.drawStr( 0, 46, "PM10:");
+    screen.drawStr(_ar(middle), 46, msg);
+
     // Carbon dioxide CO2 1 – 10000ppm
-    _u8g2->drawStr(50, 16, a->co2Toa("CO2:%.0f"));
+    s = String(a.co2(), 0); msg = s.c_str();
+    screen.drawStr(_al(middle, 3), 16, "CO2:");
+    screen.drawStr(_ar(whole), 16, msg);
+
     // Carbon monoxide CO 1 – 1000ppm
-    _u8g2->drawStr(50, 22, a->coToa("CO:%.0f"));
+    s = String(a.co(), 2); msg = s.c_str();
+    screen.drawStr(_al(middle, 3), 22, "CO:");
+    screen.drawStr(_ar(whole), 22, msg);
+
     // Nitrogen dioxide NO2 0.05 – 10ppm
-    _u8g2->drawStr(50, 28, a->no2Toa("NO2:%.0f"));
+    s = String(a.no2(), 2); msg = s.c_str();
+    screen.drawStr(_al(middle, 3), 28, "NO2:");
+    screen.drawStr(_ar(whole), 28, msg);
+
     // Ammonia NH3 1 – 500ppm
-    _u8g2->drawStr(50, 34, a->nh3Toa("NH3:%.0f"));
+    s = String(a.nh3(), 2); msg = s.c_str();
+    screen.drawStr(_al(middle, 3), 34, "NH3:");
+    screen.drawStr(_ar(whole), 34, msg);
+
     // Hydrogen H2 1 – 1000ppm
-    _u8g2->drawStr(50, 40, a->h2Toa("H2:%.0f"));
+    s = String(a.h2(), 2); msg = s.c_str();
+    screen.drawStr(_al(middle, 3), 40, "H2:");
+    screen.drawStr(_ar(whole), 40, msg);
 
-    _u8g2->setFont(u8g2_font_u8glib_4_tf);
+    screen.setFont(u8g2_font_u8glib_4_tf);
 
-    _u8g2->drawStr(50, 47, "ok");
+    s = String("ok"); msg = s.c_str();
+    screen.drawStr(_ar(whole), 47, msg);
 
-  } while ( _u8g2->nextPage() );
+  } while ( screen.nextPage() );
 }

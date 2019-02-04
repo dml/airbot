@@ -28,16 +28,21 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <AirbotAggregate.h>
 #include <U8g2lib.h>
+#include <WString.h>
 
 class AirbotDisplay {
  public:
-  AirbotDisplay(U8G2 * u8g2);
+  AirbotDisplay(U8G2 &u8g2);
   ~AirbotDisplay();
-  void render(AirbotAggregate * a);
+  void render(AirbotAggregate &a);
   void powerOn();
 
  private:
-  U8G2 * _u8g2;
+  U8G2 screen;
+  const char* msg;
+  String s;
+  int _ar(int dx, int padding);
+  int _al(int dx, int padding);
 };
 
 #endif

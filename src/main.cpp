@@ -31,15 +31,14 @@
  *
  */
 
-// #include <AsyncMqttClient.h>
-// #include <cozir.h>
+#include <cozir.h>
 #include <ESP8266WiFi.h>
-#include <MutichannelGasSensor.h>
-// #include <SDS011.h>
-// #include <SoftwareSerial.h>
-// #include <TaskScheduler.h>
-
+#include <SDS011.h>
+#include <SoftwareSerial.h>
 #include <U8g2lib.h>
+#include <MutichannelGasSensor.h>
+#include <AsyncMqttClient.h>
+#include <TaskScheduler.h>
 #include <AirbotAggregate.h>
 #include <AirbotDisplay.h>
 
@@ -53,12 +52,9 @@
 #define SPI_CS                  15
 #define SPI_DC                  12
 #define SPI_RST                 16
-
 #define CO2_RX                  0
 #define CO2_TX                  2
 
-// void connectToMqtt();
-// void connectToWifi();
 
 const char* aio_broker    = "io.adafruit.com";
 const char* aio_username  = AIO_USERNAME;
@@ -66,174 +62,127 @@ const char* aio_key       = AIO_KEY;
 const char* wifi_ssid     = WIFI_SSID;
 const char* wifi_password = WIFI_SECRET;
 
-// SoftwareSerial nss(CO2_RX, CO2_TX);
-// COZIR czr(nss);
-// SDS011 sds011;
+SoftwareSerial nss(CO2_RX, CO2_TX);
+COZIR czr(nss);
+SDS011 sds;
 
 U8G2_PCD8544_84X48_1_4W_SW_SPI u8g2(U8G2_R0, SPI_CLOCK, SPI_DATA, SPI_CS, SPI_DC, SPI_RST);
 
+
+bool readings_in_progress = false;
+int readings_loops_count = 0;
+
 AirbotAggregate airbot_aggregate;
-AirbotDisplay airbot_display(&u8g2);
-// AirbotNetwork airbot_network(wifi_ssid, wifi_password, aio_broker, aio_username, aio_key);
+AirbotDisplay airbot_display(u8g2);
+AsyncMqttClient mqttClient;
+
+bool mqttConnected = false;
+uint16_t mqttReportedTime;
+
+WiFiEventHandler wifiConnectHandler;
+WiFiEventHandler wifiDisconnectHandler;
+
+Scheduler runner;
+void connectToWifi();
+void connectToMqtt();
+Task wifiReconnectTask(2000, TASK_FOREVER, &connectToWifi);
+Task mqttReconnectTask(10000, TASK_FOREVER, &connectToMqtt);
+
+void connectToWifi() {
+  WiFi.begin(wifi_ssid, wifi_password);
+}
+
+void connectToMqtt() {
+  mqttClient.connect();
+}
+
+void onWifiConnect(const WiFiEventStationModeGotIP& event) {
+  connectToMqtt();
+}
+
+void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
+  runner.deleteTask(mqttReconnectTask);
+  runner.addTask(wifiReconnectTask);
+}
+
+void onMqttConnected(bool sessionPresent) {
+  mqttConnected = true;
+}
+
+void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
+  mqttConnected = false;
+  if (WiFi.isConnected()) {
+    runner.addTask(mqttReconnectTask);
+  }
+}
+
+void onMqttPublish(uint16_t packetId) {
+  // blink twice
+}
+
+bool messagePublishingAllowed() {
+  if (millis() - mqttReportedTime > AIRBOT_POLLING_INTERVAL) {
+    mqttReportedTime = millis();
+    return true;
+  }
+
+  if(millis() - mqttReportedTime < 0) mqttReportedTime = 0;
+
+  return false;
+}
+
+void publish() {
+  if (!(mqttConnected && messagePublishingAllowed())) return;
+
+  mqttClient.publish((String(aio_username) + "/f/temperature").c_str(), 1, false, String(airbot_aggregate.temperature(), 1).c_str());
+  mqttClient.publish((String(aio_username) + "/f/humidity").c_str(), 1, false, String(airbot_aggregate.humidity(), 1).c_str());
+  mqttClient.publish((String(aio_username) + "/f/c2h5oh").c_str(), 1, false, String(airbot_aggregate.c2h5oh(), 1).c_str());
+  mqttClient.publish((String(aio_username) + "/f/c4h10").c_str(), 1, false, String(airbot_aggregate.c4h10(), 1).c_str());
+  mqttClient.publish((String(aio_username) + "/f/c3h8").c_str(), 1, false, String(airbot_aggregate.c3h8(), 1).c_str());
+  mqttClient.publish((String(aio_username) + "/f/ch4").c_str(), 1, false, String(airbot_aggregate.ch4(), 1).c_str());
+  mqttClient.publish((String(aio_username) + "/f/pm2_5").c_str(), 1, false, String(airbot_aggregate.pm2_5(), 1).c_str());
+  mqttClient.publish((String(aio_username) + "/f/pm10").c_str(), 1, false, String(airbot_aggregate.pm10(), 1).c_str());
+  mqttClient.publish((String(aio_username) + "/f/co2").c_str(), 1, false, String(airbot_aggregate.co2(), 1).c_str());
+  mqttClient.publish((String(aio_username) + "/f/co").c_str(), 1, false, String(airbot_aggregate.co(), 1).c_str());
+  mqttClient.publish((String(aio_username) + "/f/no2").c_str(), 1, false, String(airbot_aggregate.no2(), 1).c_str());
+  mqttClient.publish((String(aio_username) + "/f/nh3").c_str(), 1, false, String(airbot_aggregate.nh3(), 1).c_str());
+  mqttClient.publish((String(aio_username) + "/f/h2").c_str(), 1, false, String(airbot_aggregate.h2(), 1).c_str());
+}
 
 
-// AsyncMqttClient mqttClient;
-// bool mqttConnected = false;
-// unsigned long mqttReportedTime = 0;
-
-// WiFiEventHandler wifiConnectHandler;
-// WiFiEventHandler wifiDisconnectHandler;
-
-// Scheduler runner;
-// Task wifiReconnectTask(2000, TASK_FOREVER, &connectToWifi);
-// Task mqttReconnectTask(10000, TASK_FOREVER, &connectToMqtt);
-
-// char measurement[16];
-
-
-// void connectToWifi() {
-//   WiFi.begin(wifi_ssid, wifi_password);
-// }
-
-// void connectToMqtt() {
-//   mqttClient.connect();
-// }
-
-// void onWifiConnect(const WiFiEventStationModeGotIP& event) {
-//   connectToMqtt();
-// }
-
-// void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
-//   runner.deleteTask(mqttReconnectTask);
-//   runner.addTask(wifiReconnectTask);
-// }
-
-// void onMqttConnected(bool sessionPresent) {
-//   mqttConnected = true;
-// }
-
-// void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-//   mqttConnected = false;
-//   if (WiFi.isConnected()) {
-//     runner.addTask(mqttReconnectTask);
-//   }
-// }
-
-// void onMqttPublish(uint16_t packetId) {
-//   // blink twice
-// }
-
-// bool messagePublishingAllowed() {
-//   if (millis() - mqttReportedTime > MIN_MESSAGING_INTERVAL) {
-//     mqttReportedTime = millis();
-//     return true;
-//   }
-
-//   if(millis() - mqttReportedTime < 0) mqttReportedTime = 0;
-
-//   return false;
-// }
-
-// void publish() {
-//   // if (mqttConnected && messagePublishingAllowed()) {
-//   // }
-
-//   mqttClient.publish((String(aio_username) + "/f/pm25").c_str(), 1, false, String(pm2_5, 1).c_str());
-//   mqttClient.publish((String(aio_username) + "/f/pm10").c_str(), 1, false, String(pm10, 1).c_str());
-//   // mqttClient.publish((String(aio_username) + "/f/pm25").c_str(), 1, false, String(pm2_5, 1).c_str());
-//   // mqttClient.publish((String(aio_username) + "/f/pm10").c_str(), 1, false, String(pm2_5, 1).c_str());
-//   // mqttClient.publish((String(aio_username) + "/f/pm25").c_str(), 1, false, String(pm2_5, 1).c_str());
-//   // mqttClient.publish((String(aio_username) + "/f/pm10").c_str(), 1, false, String(pm2_5, 1).c_str());
-//   // mqttClient.publish((String(aio_username) + "/f/pm25").c_str(), 1, false, String(pm2_5, 1).c_str());
-//   // mqttClient.publish((String(aio_username) + "/f/pm10").c_str(), 1, false, String(pm2_5, 1).c_str());
-//   // mqttClient.publish((String(aio_username) + "/f/pm25").c_str(), 1, false, String(pm2_5, 1).c_str());
-//   // mqttClient.publish((String(aio_username) + "/f/pm10").c_str(), 1, false, String(pm2_5, 1).c_str());
-//   // mqttClient.publish((String(aio_username) + "/f/pm25").c_str(), 1, false, String(pm2_5, 1).c_str());
-//   // mqttClient.publish((String(aio_username) + "/f/pm10").c_str(), 1, false, String(pm2_5, 1).c_str());
-//   // mqttClient.publish((String(aio_username) + "/f/pm25").c_str(), 1, false, String(pm2_5, 1).c_str());
-//   // mqttClient.publish((String(aio_username) + "/f/pm10").c_str(), 1, false, String(pm2_5, 1).c_str());
-// }
-
-// void setup() {
-//   nss.begin(9600);
-//   gas.begin(SENSOR_ADDR);
-//   gas.powerOn();
-
-//   wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
-//   wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
-
-//   mqttClient.onConnect(onMqttConnected);
-//   mqttClient.onDisconnect(onMqttDisconnect);
-//   mqttClient.onPublish(onMqttPublish);
-//   mqttClient.setServer(aio_broker, 1883);
-//   mqttClient.setClientId(aio_username);
-//   mqttClient.setCredentials(aio_username, aio_key);
-
-//   sds011.setup(&Serial);
-//   sds011.onData([](float pm25Value, float pm10Value) {
-//      pm2_5 = pm25Value;
-//      pm10 = pm10Value;
-//   });
-//   // sds011.onResponse([](){
-//   //   // command has been executed
-//   // });
-//   sds011.onError([](int8_t error){
-//     // error happened
-//     // -1: CRC error
-//   });
-//   sds011.setWorkingPeriod(5);
-
-//   connectToWifi();
-// }
-
-// void loop() {
-//   sds011.loop();
-
-//   float c;
-
-//   c = gas.measure_NH3();
-//   if(c >= 0) nh3 = c;
-
-//   c = gas.measure_CO();
-//   if(c >= 0) co = c;
-
-//   c = gas.measure_NO2();
-//   if(c >= 0) no2 = c;
-
-//   c = gas.measure_C3H8();
-//   if(c >= 0) c3h8 = c;
-
-//   c = gas.measure_C4H10();
-//   if(c >= 0) c4h10 = c;
-
-//   c = gas.measure_CH4();
-//   if(c >= 0) ch4 = c;
-
-//   c = gas.measure_H2();
-//   if(c >= 0) h2 = c;
-
-//   c = gas.measure_C2H5OH();
-//   if(c >= 0) c2h5oh = c;
-
-//   float t = czr.Celsius();
-//   if (-99.9 < t && t < 99.9) temperature = t;
-
-//   float h = czr.Humidity();
-//   if (0.0 < h && h < 100.0) humidity = h;
-
-//   uint16_t cm = czr.CO2();
-//   if (0 < cm && cm < 10000) co2 = cm;
-
-// }
 
 void setup() {
   airbot_display.powerOn();
+
+  wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
+  wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
+
+  mqttClient.onConnect(onMqttConnected);
+  mqttClient.onDisconnect(onMqttDisconnect);
+  mqttClient.onPublish(onMqttPublish);
+  mqttClient.setServer(aio_broker, 1883);
+  mqttClient.setClientId(aio_username);
+  mqttClient.setCredentials(aio_username, aio_key);
+
+  gas.begin(SENSOR_ADDR);
   gas.powerOn();
-  // nss.begin(9600);
-  // gas.begin(SENSOR_ADDR);
+
+  nss.begin(9600);
+
+  sds.setup(&Serial);
+  sds.onData([](float pm25Value, float pm10Value) {
+    airbot_aggregate.setPM2_5(pm25Value);
+    airbot_aggregate.setPM10(pm10Value);
+    readings_in_progress = false;
+  });
 }
 
 void loop() {
+  sds.setWorkingMode(true);
+  sds.setWorkingPeriod(30);
+
+  delay(5000);
+
   airbot_aggregate.setNH3(gas.measure_NH3());
   airbot_aggregate.setCO(gas.measure_CO());
   airbot_aggregate.setNO2(gas.measure_NO2());
@@ -243,7 +192,20 @@ void loop() {
   airbot_aggregate.setH2(gas.measure_H2());
   airbot_aggregate.setC2H5OH(gas.measure_C2H5OH());
 
-  airbot_display.render(&airbot_aggregate);
+  airbot_aggregate.setCO2(czr.CO2());
+  airbot_aggregate.setTemperature(czr.Celsius());
+  airbot_aggregate.setHumidity(czr.Humidity());
 
-  delay(5000);
+  readings_in_progress = true;
+  readings_loops_count = 5000;
+  while (readings_in_progress and readings_loops_count > 0) {
+    sds.loop();
+    readings_loops_count--;
+  }
+
+  sds.setWorkingMode(false);
+
+  airbot_display.render(airbot_aggregate);
+
+  publish();
 }
