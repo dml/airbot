@@ -25,6 +25,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <ESP8266WiFi.h>
 #include <AirbotAggregate.h>
+#include <RunningAverage.h>
 
 AirbotAggregate::AirbotAggregate() {
   _reset();

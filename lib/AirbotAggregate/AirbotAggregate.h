@@ -26,6 +26,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef AirbotAggregate_h
 #define AirbotAggregate_h
 
+#include <RunningAverage.h>
+
 class AirbotAggregate {
  public:
   AirbotAggregate();

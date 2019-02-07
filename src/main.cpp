@@ -4,21 +4,14 @@
  * WeMos D1 Mini   Nokia 5110    Description
  * (ESP8266)       PCD8544 LCD
  *
- * D0 (GPIO16)     0 RST         Output from ESP to reset display
- * D8 (GPIO15)     1 CE          Output from ESP to chip select/enable display
+ * D0 (GPIO16)     0 RST         Output from ESP to reset display               TODO:  => 3V3
+ * D8 (GPIO15)     1 CE          Output from ESP to chip select/enable display  TODO  => GND
  * D6 (GPIO12)     2 DC          Output from display data/command to ESP
  * D7 (GPIO13)     3 Din         Output from ESP SPI MOSI to display data input
  * D5 (GPIO14)     4 Clk         Output from ESP SPI clock
  * 3V3             5 Vcc         3.3V from ESP to display
  * D0 (GPIO16)     6 BL          3.3V to turn backlight on, or PWM
  * G               7 Gnd         Ground
- *
- *
- * WeMos D1 Mini   Piezoelectric Description
- * (ESP8266)       speaker
- *
- * D8 (GPIO15)     + SND         Piezo +
- * G               - Gnd         Piezo -
  *
  *
  * WeMos D1 Mini   CoZiR         Description
@@ -42,16 +35,17 @@
 #include <AirbotAggregate.h>
 #include <AirbotDisplay.h>
 
-#define AIRBOT_POLLING_INTERVAL 15000
+#define AIRBOT_PUBLISH_INTERVAL 60e3  // 15 seconds in milliseconds
+#define AIRBOT_SLEEP_INTERVAL   60e6  // 60 seconds in microseconds
 
 #define SENSOR_ADDR             0X04
 #define PRE_HEAT_TIME           0
 
-#define SPI_CLOCK               14
-#define SPI_DATA                13
-#define SPI_CS                  15
-#define SPI_DC                  12
-#define SPI_RST                 16
+#define SPI_CLOCK               14 // Serial clock out (SCLK, CLK)
+#define SPI_DATA                13 // Serial data out (DIN / MISO)
+#define SPI_CS                  15 // LCD chip select (CS, CE), can be set to -1 if not used (tie line low)
+#define SPI_DC                  12 // Data/Command select (D/C, DC)
+#define SPI_RST                 16 // LCD reset (RST), can be set to -1 if not used (tie line high or to reset of MCU)
 #define CO2_RX                  0
 #define CO2_TX                  2
 
@@ -68,25 +62,25 @@ SDS011 sds;
 
 U8G2_PCD8544_84X48_1_4W_SW_SPI u8g2(U8G2_R0, SPI_CLOCK, SPI_DATA, SPI_CS, SPI_DC, SPI_RST);
 
-
 bool readings_in_progress = false;
 int readings_loops_count = 0;
 
 AirbotAggregate airbot_aggregate;
 AirbotDisplay airbot_display(u8g2);
 AsyncMqttClient mqttClient;
-
-bool mqttConnected = false;
-uint16_t mqttReportedTime;
-
 WiFiEventHandler wifiConnectHandler;
 WiFiEventHandler wifiDisconnectHandler;
 
-Scheduler runner;
 void connectToWifi();
 void connectToMqtt();
-Task wifiReconnectTask(2000, TASK_FOREVER, &connectToWifi);
-Task mqttReconnectTask(10000, TASK_FOREVER, &connectToMqtt);
+void deepSleep();
+void publish();
+
+Scheduler runner;
+Task wifiReconnectTask(10000, TASK_FOREVER, &connectToWifi, &runner, false);
+Task mqttReconnectTask(10000, TASK_FOREVER, &connectToMqtt, &runner, false);
+Task publishTask(AIRBOT_PUBLISH_INTERVAL, TASK_FOREVER, &publish, &runner, false);
+Task deepSleepTask(0, TASK_ONCE, &deepSleep, &runner, false);
 
 void connectToWifi() {
   WiFi.begin(wifi_ssid, wifi_password);
@@ -96,44 +90,40 @@ void connectToMqtt() {
   mqttClient.connect();
 }
 
+void deepSleep() {
+  ESP.deepSleep(AIRBOT_SLEEP_INTERVAL);
+}
+
 void onWifiConnect(const WiFiEventStationModeGotIP& event) {
-  connectToMqtt();
+  wifiReconnectTask.disable();
+  mqttReconnectTask.delay(1000);
+  mqttReconnectTask.enable();
 }
 
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
-  runner.deleteTask(mqttReconnectTask);
-  runner.addTask(wifiReconnectTask);
+  mqttReconnectTask.disable();
+  wifiReconnectTask.enable();
 }
 
 void onMqttConnected(bool sessionPresent) {
-  mqttConnected = true;
+  publishTask.enable();
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-  mqttConnected = false;
+  publishTask.disable();
   if (WiFi.isConnected()) {
-    runner.addTask(mqttReconnectTask);
+    mqttReconnectTask.enable();
   }
 }
 
 void onMqttPublish(uint16_t packetId) {
-  // blink twice
-}
-
-bool messagePublishingAllowed() {
-  if (millis() - mqttReportedTime > AIRBOT_POLLING_INTERVAL) {
-    mqttReportedTime = millis();
-    return true;
-  }
-
-  if(millis() - mqttReportedTime < 0) mqttReportedTime = 0;
-
-  return false;
+  return;
+  runner.disableAll(true);
+  deepSleepTask.delay(5000);
+  deepSleepTask.enable();
 }
 
 void publish() {
-  if (!(mqttConnected && messagePublishingAllowed())) return;
-
   mqttClient.publish((String(aio_username) + "/f/temperature").c_str(), 1, false, String(airbot_aggregate.temperature(), 1).c_str());
   mqttClient.publish((String(aio_username) + "/f/humidity").c_str(), 1, false, String(airbot_aggregate.humidity(), 1).c_str());
   mqttClient.publish((String(aio_username) + "/f/c2h5oh").c_str(), 1, false, String(airbot_aggregate.c2h5oh(), 1).c_str());
@@ -175,13 +165,12 @@ void setup() {
     airbot_aggregate.setPM10(pm10Value);
     readings_in_progress = false;
   });
+
+  wifiReconnectTask.enable();
 }
 
 void loop() {
   sds.setWorkingMode(true);
-  sds.setWorkingPeriod(30);
-
-  delay(5000);
 
   airbot_aggregate.setNH3(gas.measure_NH3());
   airbot_aggregate.setCO(gas.measure_CO());
@@ -203,9 +192,7 @@ void loop() {
     readings_loops_count--;
   }
 
-  sds.setWorkingMode(false);
-
   airbot_display.render(airbot_aggregate);
 
-  publish();
+  runner.execute();
 }
