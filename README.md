@@ -20,6 +20,12 @@ Export environment variables
 export PLATFORMIO_BUILD_FLAGS='-DAIO_USERNAME=\"aio username\" -DAIO_KEY=\"aiu key\" -DWIFI_SSID=\"WIFI_SSID\" -DWIFI_SECRET=\"WIFI_SECRET\"'
 ```
 
+Capture your usb port identity and update `platformio.ini` file
+
+```bash
+pio device list
+```
+
 Flash your WeMoS D1 mini connected to the USB.
 
 ```bash
