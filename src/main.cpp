@@ -4,11 +4,11 @@
  * WeMos D1 Mini   Nokia 5110    Description
  * (ESP8266)       PCD8544 LCD
  *
- * D0 (GPIO16)     0 RST         Output from ESP to reset display               TODO:  => 3V3
- * D8 (GPIO15)     1 CE          Output from ESP to chip select/enable display  TODO  => GND
- * D6 (GPIO12)     2 DC          Output from display data/command to ESP
+ * 3v3             0 RST         Output from ESP to reset display
+ * GND             1 CE          Output from ESP to chip select/enable display
+ * D8 (GPIO15)     2 DC          Output from display data/command to ESP
  * D7 (GPIO13)     3 Din         Output from ESP SPI MOSI to display data input
- * D5 (GPIO14)     4 Clk         Output from ESP SPI clock
+ * D6 (GPIO12)     4 Clk         Output from ESP SPI clock
  * 3V3             5 Vcc         3.3V from ESP to display
  * D0 (GPIO16)     6 BL          3.3V to turn backlight on, or PWM
  * G               7 Gnd         Ground
@@ -21,6 +21,11 @@
  * 3V3             3V3           3V3
  * D3 (GPIO0)      RX            Rx
  * D4 (GPIO2)      TX            Tx
+ *
+ *
+ * WeMos D1 Mini   CoZiR         Description
+ *
+ * D5 (GPIO14)     is free (display led or buzzer)
  *
  */
 
@@ -41,11 +46,11 @@
 #define SENSOR_ADDR             0X04
 #define PRE_HEAT_TIME           0
 
-#define SPI_CLOCK               14 // Serial clock out (SCLK, CLK)
+#define SPI_RST                 -1 // LCD reset (RST), can be set to -1 if not used (tie line high or to reset of MCU)
+#define SPI_CS                  -1 // LCD chip select (CS, CE), can be set to -1 if not used (tie line low)
+#define SPI_DC                  15 // Data/Command select (D/C, DC)
 #define SPI_DATA                13 // Serial data out (DIN / MISO)
-#define SPI_CS                  15 // LCD chip select (CS, CE), can be set to -1 if not used (tie line low)
-#define SPI_DC                  12 // Data/Command select (D/C, DC)
-#define SPI_RST                 16 // LCD reset (RST), can be set to -1 if not used (tie line high or to reset of MCU)
+#define SPI_CLOCK               12 // Serial clock out (SCLK, CLK)
 #define CO2_RX                  0
 #define CO2_TX                  2
 
